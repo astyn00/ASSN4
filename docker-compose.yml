@@ -1,0 +1,123 @@
+version: '3.8'
+
+# ============================================================
+# ASSIGNMENT 4 - PROMETHEUS & GRAFANA MONITORING
+# ============================================================
+# Этот файл запускает все необходимые сервисы для мониторинга:
+# - Prometheus (сбор метрик)
+# - Grafana (визуализация)
+# - DB Exporter (метрики PostgreSQL)
+# - Node Exporter (метрики системы)
+# - Custom Exporter (метрики погоды)
+
+networks:
+  monitoring:
+    driver: bridge
+
+volumes:
+  prometheus_data: {}
+  grafana_data: {}
+
+services:
+  # ============================================================
+  # PROMETHEUS - Система сбора метрик
+  # ============================================================
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    restart: unless-stopped
+    ports:
+      - "9090:9090"  # Веб-интерфейс Prometheus
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml  # Конфигурация
+      - prometheus_data:/prometheus  # Данные метрик
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=30d'  # Хранить данные 30 дней
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--web.enable-lifecycle'
+    networks:
+      - monitoring
+
+  # ============================================================
+  # GRAFANA - Визуализация метрик
+  # ============================================================
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"  # Веб-интерфейс Grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin  # Логин
+      - GF_SECURITY_ADMIN_PASSWORD=admin  # Пароль
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_SERVER_ROOT_URL=http://localhost:3000
+      - GF_INSTALL_PLUGINS=  # Можно добавить плагины если нужно
+    volumes:
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - prometheus
+    networks:
+      - monitoring
+
+  # ============================================================
+  # DB EXPORTER - Метрики PostgreSQL (Dashboard 1)
+  # ============================================================
+  postgres_exporter:
+    image: prometheuscommunity/postgres-exporter:latest
+    container_name: postgres_exporter
+    restart: unless-stopped
+    ports:
+      - "9187:9187"  # Порт для метрик
+    environment:
+      # ВАЖНО: Замени если у тебя другие данные для подключения
+      DATA_SOURCE_NAME: "postgresql://postgres:1111@host.docker.internal:5432/nba_analytics?sslmode=disable"
+    networks:
+      - monitoring
+    extra_hosts:
+      - "host.docker.internal:host-gateway"  # Доступ к localhost с хоста
+
+  # ============================================================
+  # NODE EXPORTER - Метрики системы (Dashboard 2)
+  # ============================================================
+  node_exporter:
+    image: prom/node-exporter:latest
+    container_name: node_exporter
+    restart: unless-stopped
+    ports:
+      - "9100:9100"  # Порт для метрик
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.sysfs=/host/sys'
+      - '--path.rootfs=/rootfs'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    networks:
+      - monitoring
+
+  # ============================================================
+  # CUSTOM EXPORTER - Метрики погоды (Dashboard 3)
+  # ============================================================
+  # Этот сервис будет создан позже из Python скрипта
+  # Раскомментируй после создания custom_exporter.py
+  
+  custom_exporter:
+     build:
+       context: .
+       dockerfile: Dockerfile.custom_exporter
+     container_name: custom_exporter
+     restart: unless-stopped
+     ports:
+       - "8000:8000"  # Порт для метрик
+     environment:
+       - OPENWEATHER_API_KEY=070d6841777095580fb61bb96ab296aa
+       - CITY=Astana
+       - UPDATE_INTERVAL=20  # Обновление каждые 20 секунд
+     networks:  
+       - monitoring

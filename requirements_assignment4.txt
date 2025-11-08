@@ -1,0 +1,11 @@
+# Requirements for Assignment 4 - Custom Weather Exporter
+# Install: pip install -r requirements_assignment4.txt
+
+# Prometheus client library
+prometheus-client==0.19.0
+
+# HTTP requests for API calls
+requests==2.31.0
+
+# Optional: if you want to run exporter with better logging
+python-dotenv==1.0.0

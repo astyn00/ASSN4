@@ -1,0 +1,101 @@
+# ============================================================
+# PROMETHEUS CONFIGURATION - ASSIGNMENT 4
+# ============================================================
+# Этот файл настраивает Prometheus для сбора метрик из всех источников
+
+global:
+  scrape_interval: 15s      # Как часто собирать метрики (каждые 15 секунд)
+  evaluation_interval: 15s  # Как часто проверять правила
+  scrape_timeout: 10s       # Таймаут для сбора метрик
+
+  # Глобальные метки (добавляются ко всем метрикам)
+  external_labels:
+    monitor: 'nba-analytics-monitoring'
+    environment: 'development'
+
+# ============================================================
+# ПРАВИЛА АЛЕРТОВ (можно добавить позже)
+# ============================================================
+# alerting:
+#   alertmanagers:
+#     - static_configs:
+#         - targets:
+#           - alertmanager:9093
+
+# rule_files:
+#   - "alerts.yml"
+
+# ============================================================
+# TARGETS - Источники метрик
+# ============================================================
+scrape_configs:
+
+  # ------------------------------------------------------------
+  # 1. PROMETHEUS SELF-MONITORING
+  # ------------------------------------------------------------
+  # Prometheus сам мониторит себя
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+        labels:
+          service: 'prometheus'
+          type: 'monitoring'
+
+  # ------------------------------------------------------------
+  # 2. DATABASE EXPORTER (PostgreSQL) - Dashboard 1
+  # ------------------------------------------------------------
+  # Метрики базы данных NBA Analytics
+  - job_name: 'postgres_exporter'
+    scrape_interval: 10s  # Каждые 10 секунд
+    static_configs:
+      - targets: ['postgres_exporter:9187']
+        labels:
+          service: 'postgres'
+          database: 'nba_analytics'
+          type: 'database'
+
+  # ------------------------------------------------------------
+  # 3. NODE EXPORTER (System Metrics) - Dashboard 2
+  # ------------------------------------------------------------
+  # Метрики системы (CPU, RAM, диск, сеть)
+  - job_name: 'node_exporter'
+    scrape_interval: 5s  # Каждые 5 секунд (чаще для системных метрик)
+    static_configs:
+      - targets: ['node_exporter:9100']
+        labels:
+          service: 'node'
+          instance: 'local-machine'
+          type: 'system'
+
+  # ------------------------------------------------------------
+  # 4. CUSTOM EXPORTER (Weather API) - Dashboard 3
+  # ------------------------------------------------------------
+  # Метрики погоды из OpenWeather API
+  - job_name: 'weather_exporter'
+    scrape_interval: 20s  # Каждые 20 секунд (по заданию)
+    static_configs:
+      - targets: ['custom_exporter:8000']
+        labels:
+          service: 'weather'
+          city: 'astana'
+          type: 'external_api'
+
+  # ------------------------------------------------------------
+  # ДОПОЛНИТЕЛЬНЫЕ EXPORTERS (опционально)
+  # ------------------------------------------------------------
+  # Раскомментируй если добавишь другие exporters
+  
+  # - job_name: 'grafana'
+  #   static_configs:
+  #     - targets: ['grafana:3000']
+
+# ============================================================
+# STORAGE CONFIGURATION
+# ============================================================
+# Настройки хранения данных (уже в docker-compose, но можно переопределить)
+# storage:
+#   tsdb:
+#     path: /prometheus
+#     retention:
+#       time: 30d
+#       size: 10GB

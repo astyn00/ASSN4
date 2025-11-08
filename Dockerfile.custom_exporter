@@ -1,0 +1,18 @@
+# Dockerfile для Custom Weather Exporter
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Устанавливаем зависимости
+RUN pip install --no-cache-dir \
+    prometheus-client==0.19.0 \
+    requests==2.31.0
+
+# Копируем скрипт
+COPY custom_exporter.py .
+
+# Открываем порт
+EXPOSE 8000
+
+# Запускаем exporter
+CMD ["python", "-u", "custom_exporter.py"]
